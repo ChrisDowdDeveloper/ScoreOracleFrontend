@@ -7,37 +7,26 @@ import { RegisterSchema } from "@/schemas";
 import { findUserByEmail, findUserByUsername } from "./user";
 
 export const register = async (values: z.infer<typeof RegisterSchema>) => {
-    const API_URL = "http://localhost:8080";
+    const API_BASE_URL = process.env.BASE_DATABASE_URL;
     const validatedFields = RegisterSchema.safeParse(values);
 
     if (!validatedFields.success) {
         return { error: "Invalid fields!" };
     }
 
-    const { username, email, password, firstName, lastName, dateOfBirth } = validatedFields.data;
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const { userName, email, password, firstName, lastName } = validatedFields.data;
     const userData = {
-        username,
+        userName,
         email,
-        password: hashedPassword,
+        password,
         firstName,
-        lastName,
-        dateOfBirth,
-        dateJoined: new Date().toISOString()
+        lastName
     };
 
-
-    const existingUsername = await findUserByUsername(username);
-    const existingEmail = await findUserByEmail(email);
-    if(existingUsername) {
-        return { error: "Username already exists!" };
-    }
-    if(existingEmail) {
-        return { error: "Email already exists!" }
-    }
+    console.log(userData);
 
     try {
-        const response = await fetch(`${API_URL}/users`, {
+        const response = await fetch(`${API_BASE_URL}/User/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(userData)
