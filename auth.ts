@@ -2,14 +2,15 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { LoginSchema } from "./schemas";
 import { authenticateUser, getUserById } from "@/lib/db";
-import { jwtDecode } from "jwt-decode";
+import { jwtDecode } from "jwt-decode"; // Correct import for jwt-decode
 
 interface DecodedJWT {
     sub: string;
     email: string;
     given_name: string;
+    role: string; // Ensure the role is included in the interface
     [key: string]: any; 
-  }
+}
 
 export const { 
     handlers: { GET, POST }, 
@@ -23,10 +24,7 @@ export const {
                 session.user.id = token.sub;
                 session.user.token = token.token;
                 session.user.userName = token.name;
-            }
-
-            if(token.role && session.user) {
-                session.user.role = token.role;
+                session.user.role = token.role; // Ensure the role is added to the session
             }
 
             return session;
@@ -37,15 +35,11 @@ export const {
                 token.email = user.email;
                 token.name = user.userName;
                 token.token = user.token;
+                token.role = user.role; // Ensure the role is added to the token
+            } else {
+                const decodedToken: DecodedJWT = jwtDecode(token.token as string);
+                token.role = decodedToken.role; // Ensure role is extracted from the decoded token
             }
-
-            if(!token.sub) return token;
-
-            const existingUser = await getUserById(token.sub as string, token.token as string);
-
-            if(!existingUser) return token;
-
-            token.role = existingUser.role;
 
             return token;
         }
@@ -76,14 +70,15 @@ export const {
                         return null;
                     }
 
-                    // Decode the JWT token to extract the `sub` claim
+                    // Decode the JWT token to extract the `sub` claim and role
                     const decodedToken: DecodedJWT = jwtDecode(user.token);
 
                     return {
                         id: decodedToken.sub, // Extracted user ID from the token
                         email: user.email,
                         userName: user.username,
-                        token: user.token
+                        token: user.token,
+                        role: decodedToken.role // Extracted role from the token
                     };
                 } catch (error) {
                     console.error("Error in authorize function:", error);
