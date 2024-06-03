@@ -2,13 +2,15 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { LoginSchema } from "./schemas";
 import { authenticateUser, getUserById } from "@/lib/db";
-import { jwtDecode } from "jwt-decode"; // Correct import for jwt-decode
+import { jwtDecode } from "jwt-decode";
+import Facebook from "next-auth/providers/facebook";
+import Google from "next-auth/providers/google";
 
 interface DecodedJWT {
     sub: string;
     email: string;
     given_name: string;
-    role: string; // Ensure the role is included in the interface
+    role: string;
     [key: string]: any; 
 }
 
@@ -24,27 +26,41 @@ export const {
                 session.user.id = token.sub;
                 session.user.token = token.token;
                 session.user.userName = token.name;
-                session.user.role = token.role; // Ensure the role is added to the session
+                session.user.role = token.role;
             }
 
             return session;
         },
-        async jwt({ token, user }) {
-            if (user) {
+        async jwt({ token, user, account }) {
+            if (account && user) {
                 token.sub = user.id;
                 token.email = user.email;
                 token.name = user.userName;
                 token.token = user.token;
                 token.role = user.role; // Ensure the role is added to the token
+            } else if (token.token && typeof token.token === 'string') {
+                try {
+                    const decodedToken: DecodedJWT = jwtDecode(token.token);
+                    token.role = decodedToken.role; // Ensure role is extracted from the decoded token
+                } catch (error) {
+                    console.error("Error decoding token:", error);
+                }
             } else {
-                const decodedToken: DecodedJWT = jwtDecode(token.token as string);
-                token.role = decodedToken.role; // Ensure role is extracted from the decoded token
+                console.error("Token is not a valid string:", token.token);
             }
 
             return token;
         }
     },
     providers: [
+        Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET
+        }),
+        Facebook({
+            clientId: process.env.FACEBOOK_CLIENT_ID,
+            clientSecret: process.env.FACEBOOK_CLIENT_SECRET
+        }),
         CredentialsProvider({
             name: "Credentials",
             credentials: {
