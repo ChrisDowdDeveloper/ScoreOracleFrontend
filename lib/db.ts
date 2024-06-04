@@ -1,13 +1,10 @@
+import { Credentials, User } from "./interface";
+
 const API_BASE_URL = process.env.BASE_DATABASE_URL;
 
 const headers = new Headers({
     'Content-Type': 'application/json'
 });
-
-export interface Credentials {
-    email: string;
-    password: string;
-}
 
 export async function authenticateUser(credentials: Credentials) {
     const response = await fetch(`${API_BASE_URL}/User/login`, {
@@ -28,6 +25,31 @@ export async function authenticateUser(credentials: Credentials) {
         username: user.userName,
         token: user.token
     };
+}
+
+export async function getUserByEmail(email: string) {
+    console.log(`Checking endpoint: ${API_BASE_URL}/User/email/${email}`)
+    try {
+        const response = await fetch(`${API_BASE_URL}/User/email/${email}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                return null;
+            }
+            throw new Error('Failed to fetch user');
+        }
+
+        const user = await response.json();
+        return user;
+    } catch (error) {
+        console.error('Error in getUserByEmail:', error);
+        throw error;
+    }
 }
 
 export async function getUserById(userId: string, token: string) {
@@ -53,3 +75,26 @@ export async function getUserById(userId: string, token: string) {
         throw error;
     }
 }
+
+export const createUser = async (user: User): Promise<any> => {
+    try {
+        console.log("Sending payload to create user:", user);
+        const response = await fetch(`${API_BASE_URL}/User/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(user),
+        });
+
+        if (!response.ok) {
+            console.error("Failed to create user:", response.statusText);
+            throw new Error(`Failed to create user: ${response.statusText}`);
+        }
+
+        return response.json();
+    } catch (error) {
+        console.error("Error in createUser:", error);
+        throw error;
+    }
+};
